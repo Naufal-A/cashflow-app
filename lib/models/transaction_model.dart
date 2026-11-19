@@ -1,55 +1,56 @@
-import '../constants/categories.dart';
+import 'package:flutter/material.dart';
 
-enum TransactionType {
-  income,
-  expense;
+enum TxCategory {
+  food('Food & Drinks', Icons.restaurant, Color(0xFFF59E0B)),
+  transport('Rides & Transport', Icons.directions_car, Color(0xFF3B82F6)),
+  shopping('Shopping', Icons.shopping_bag, Color(0xFFA855F7)),
+  bills('Bills & Utilities', Icons.receipt_long, Color(0xFFEF4444)),
+  salary('Salary / Income', Icons.payments, Color(0xFF10B981)),
+  entertainment('Entertainment', Icons.movie, Color(0xFF14B8A6)),
+  other('Other', Icons.category, Color(0xFF64748B));
 
-  static TransactionType fromName(String name) {
-    return TransactionType.values.firstWhere(
-      (e) => e.name == name,
-      orElse: () => TransactionType.expense,
-    );
-  }
+  const TxCategory(this.label, this.icon, this.color);
+
+  final String label;
+  final IconData icon;
+  final Color color;
 }
 
-class TransactionModel {
+class TxItem {
   final String id;
   final String title;
   final double amount;
-  final TransactionType type;
-  final TransactionCategory category;
+  final bool isIncome;
+  final TxCategory category;
   final DateTime date;
 
-  const TransactionModel({
+  const TxItem({
     required this.id,
     required this.title,
     required this.amount,
-    required this.type,
+    required this.isIncome,
     required this.category,
     required this.date,
   });
 
-  bool get isIncome => type == TransactionType.income;
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'amount': amount,
+    'isIncome': isIncome,
+    'category': category.name,
+    'date': date.toIso8601String(),
+  };
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'amount': amount,
-      'type': type.name,
-      'category': category.name,
-      'date': date.toIso8601String(),
-    };
-  }
-
-  factory TransactionModel.fromJson(Map<String, dynamic> json) {
-    return TransactionModel(
-      id: json['id'] as String,
-      title: json['title'] as String,
-      amount: (json['amount'] as num).toDouble(),
-      type: TransactionType.fromName(json['type'] as String),
-      category: TransactionCategory.fromName(json['category'] as String),
-      date: DateTime.parse(json['date'] as String),
-    );
-  }
+  factory TxItem.fromJson(Map<String, dynamic> json) => TxItem(
+    id: json['id'] as String,
+    title: json['title'] as String,
+    amount: (json['amount'] as num).toDouble(),
+    isIncome: json['isIncome'] as bool,
+    category: TxCategory.values.firstWhere(
+      (e) => e.name == json['category'],
+      orElse: () => TxCategory.other,
+    ),
+    date: DateTime.parse(json['date'] as String),
+  );
 }
