@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../constants/categories.dart';
 import '../models/transaction_model.dart';
 import '../providers/cashflow_provider.dart';
 import '../widgets/add_transaction_sheet.dart';
@@ -11,19 +10,35 @@ import '../widgets/transaction_tile.dart';
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  void _deleteTransaction(BuildContext context, TransactionModel tx) {
-    final provider = context.read<CashflowProvider>();
-    provider.remove(tx.id);
+  void _openAddTransactionSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AddTransactionSheet(),
+    );
+  }
+
+  void _handleDelete(
+    BuildContext context,
+    CashflowProvider provider,
+    TransactionModel transaction,
+  ) {
+    provider.deleteTransaction(transaction.id);
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          content: Text('Deleted "${transaction.title}"'),
           behavior: SnackBarBehavior.floating,
-          content: Text('"${tx.title}" deleted'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           action: SnackBarAction(
             label: 'Undo',
-            onPressed: () => provider.add(tx),
+            textColor: const Color(0xFF10B981),
+            onPressed: () => provider.restoreTransaction(transaction),
           ),
         ),
       );
@@ -32,174 +47,205 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CashflowProvider>();
-    final items = provider.filteredTransactions;
+    final transactions = provider.filteredTransactions;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => AddTransactionSheet.show(context),
-        backgroundColor: AppColors.textPrimary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text(
-          'Add Transaction',
-          style: TextStyle(fontWeight: FontWeight.w700),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF8FAFC),
+        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
+        title: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Cashflow',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    letterSpacing: -0.4,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      body: SafeArea(
-        child: !provider.isLoaded
-            ? const Center(child: CircularProgressIndicator())
-            : CustomScrollView(
-                slivers: [
-                  const SliverToBoxAdapter(child: _Header()),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: BalanceCard(
-                        balance: provider.balance,
-                        totalIncome: provider.totalIncome,
-                        totalExpense: provider.totalExpense,
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-                      child: _FilterRow(
-                        selected: provider.filter,
-                        onSelected: provider.setFilter,
-                      ),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(20, 16, 20, 10),
-                      child: Text(
-                        'Transaction History',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: provider.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : CustomScrollView(
+                  slivers: [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                      sliver: SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const BalanceCard(),
+                            const SizedBox(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Transactions',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                _FilterChipsRow(
+                                  selectedFilter: provider.filter,
+                                  onSelected: provider.setFilter,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                  if (items.isEmpty)
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _EmptyState(filter: provider.filter),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
-                      sliver: SliverList.builder(
-                        itemCount: items.length,
-                        itemBuilder: (context, index) {
-                          final tx = items[index];
-                          return TransactionTile(
-                            key: ValueKey(tx.id),
-                            transaction: tx,
-                            onDismissed: () => _deleteTransaction(context, tx),
-                          );
-                        },
+                    if (transactions.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _EmptyTransactionsState(filter: provider.filter),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                        sliver: SliverList.separated(
+                          itemCount: transactions.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            final item = transactions[index];
+                            return TransactionTile(
+                              transaction: item,
+                              onDismissed: () =>
+                                  _handleDelete(context, provider, item),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                ),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openAddTransactionSheet(context),
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: Colors.white,
+        elevation: 3,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text(
+          'Add Transaction',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Cashflow',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-            ),
-          ),
-          SizedBox(height: 2),
-          Text(
-            'Track every rupiah in and out',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterRow extends StatelessWidget {
-  final TransactionFilter selected;
+class _FilterChipsRow extends StatelessWidget {
+  final TransactionFilter selectedFilter;
   final ValueChanged<TransactionFilter> onSelected;
 
-  const _FilterRow({required this.selected, required this.onSelected});
+  const _FilterChipsRow({
+    required this.selectedFilter,
+    required this.onSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _chip('All', TransactionFilter.all, AppColors.textPrimary),
-        _chip('Cash In', TransactionFilter.income, AppColors.income),
-        _chip('Cash Out', TransactionFilter.expense, AppColors.expense),
+        _buildChip(
+          label: 'All',
+          filter: TransactionFilter.all,
+          activeColor: const Color(0xFF0F172A),
+        ),
+        const SizedBox(width: 6),
+        _buildChip(
+          label: 'Cash In',
+          filter: TransactionFilter.income,
+          activeColor: const Color(0xFF10B981),
+        ),
+        const SizedBox(width: 6),
+        _buildChip(
+          label: 'Cash Out',
+          filter: TransactionFilter.expense,
+          activeColor: const Color(0xFFEF4444),
+        ),
       ],
     );
   }
 
-  Widget _chip(String label, TransactionFilter value, Color color) {
-    final isSelected = selected == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      showCheckmark: false,
-      onSelected: (_) => onSelected(value),
-      selectedColor: color,
-      backgroundColor: Colors.white,
-      side: BorderSide(color: isSelected ? color : AppColors.border),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : AppColors.textPrimary,
-        fontWeight: FontWeight.w600,
+  Widget _buildChip({
+    required String label,
+    required TransactionFilter filter,
+    required Color activeColor,
+  }) {
+    final isSelected = selectedFilter == filter;
+    return GestureDetector(
+      onTap: () => onSelected(filter),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : const Color(0xFF475569),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyTransactionsState extends StatelessWidget {
   final TransactionFilter filter;
 
-  const _EmptyState({required this.filter});
+  const _EmptyTransactionsState({required this.filter});
 
   @override
   Widget build(BuildContext context) {
-    final String title;
-    final String subtitle;
-    switch (filter) {
-      case TransactionFilter.all:
-        title = 'No transactions yet';
-        subtitle =
-            'Tap "Add Transaction" to record your first cash in or cash out.';
-        break;
-      case TransactionFilter.income:
-        title = 'No cash in yet';
-        subtitle = 'Income you add will show up here.';
-        break;
-      case TransactionFilter.expense:
-        title = 'No cash out yet';
-        subtitle = 'Expenses you add will show up here.';
-        break;
+    String title = 'No transactions yet';
+    String subtitle =
+        'Tap "+ Add Transaction" below to record your first entry.';
+
+    if (filter == TransactionFilter.income) {
+      title = 'No Cash In records';
+      subtitle = 'Add an income entry or switch back to "All".';
+    } else if (filter == TransactionFilter.expense) {
+      title = 'No Cash Out records';
+      subtitle = 'Add an expense entry or switch back to "All".';
     }
 
     return Padding(
@@ -208,36 +254,31 @@ class _EmptyState extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 88,
-            height: 88,
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.income.tint(0.1),
+              color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 42,
-              color: AppColors.income,
+              Icons.receipt_long_rounded,
+              size: 40,
+              color: Color(0xFF64748B),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Text(
             title,
             style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 17,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
+              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-              height: 1.4,
-            ),
+            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
           ),
         ],
       ),

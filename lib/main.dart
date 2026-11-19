@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'constants/categories.dart';
 import 'providers/cashflow_provider.dart';
 import 'screens/home_screen.dart';
 
@@ -9,7 +8,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     ChangeNotifierProvider(
-      create: (_) => CashflowProvider()..load(),
+      create: (_) => CashflowProvider()..loadTransactions(),
       child: const CashflowApp(),
     ),
   );
@@ -21,34 +20,17 @@ class CashflowApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cashflow',
+      title: 'Cashflow Tracker',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.income,
-          brightness: Brightness.light,
+          seedColor: const Color(0xFF10B981),
+          surface: const Color(0xFFF8FAFC),
         ),
-        scaffoldBackgroundColor: AppColors.background,
-        snackBarTheme: SnackBarThemeData(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+        fontFamily: 'Roboto',
       ),
-      // Keeps the whole app (including sheets and dialogs) centered with a
-      // max width on wide screens such as Edge / desktop.
-      builder: (context, child) {
-        return ColoredBox(
-          color: AppColors.background,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520),
-              child: child,
-            ),
-          ),
-        );
-      },
       home: const HomeScreen(),
     );
   }
