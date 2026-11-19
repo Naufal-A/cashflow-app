@@ -12,7 +12,6 @@ class AppColors {
 }
 
 extension ColorTint on Color {
-  /// Returns this color with the given opacity (0.0 - 1.0).
   Color tint(double opacity) => withAlpha((opacity * 255).round());
 }
 

@@ -36,8 +36,6 @@ class CashflowApp extends StatelessWidget {
           ),
         ),
       ),
-      // Keeps the whole app (including sheets and dialogs) centered with a
-      // max width on wide screens such as Edge / desktop.
       builder: (context, child) {
         return ColoredBox(
           color: AppColors.background,
